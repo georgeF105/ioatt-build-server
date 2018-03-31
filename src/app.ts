@@ -4,8 +4,8 @@ import * as cookieParser from 'cookie-parser';
 import * as bodyParser from 'body-parser';
 import 'dotenv/config';
 
-import firmware from './firmware/firmware.route';
-import sensor from './sensor/sensor.route';
+import firmware from './routes/firmware/firmware.route';
+import sensor from './routes/sensor/sensor.route';
 
 let app = express();
 
