@@ -2,14 +2,21 @@ import * as express from 'express';
 import { FirebaseAdminService } from '../../services/firebase/firebase-admin.service';
 let router = express.Router();
 
-const firebaseAdminService = new FirebaseAdminService();
+export class SensorRoute {
+  public router: express.Router;
 
-/* GET home page. */
-router.post('/', function(req, res, next) {
-  const data = req.body;
-  console.log(data);
-  firebaseAdminService.pushSensorUpdate('D1_MINI_01', data);
-  res.send();
-});
+  constructor (
+    private firebaseAdminService: FirebaseAdminService
+  ) {
+    this.router = express.Router();
 
-export default router;
+    this.router.post('/', (req, res, next) => this.postSensorData(req, res, next));
+  }
+
+  private postSensorData (req, res, next) {
+    const data = req.body;
+    console.log(data);
+    this.firebaseAdminService.pushSensorUpdate('D1_MINI_01', data);
+    res.send();
+  }
+}

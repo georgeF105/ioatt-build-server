@@ -8,6 +8,14 @@ export class FirebaseAdminService {
     this.database = admin.database();
   }
 
+  public getDeviceStatus (deviceName: string): Promise<any> {
+    return this.database.ref('devices').child(deviceName).once('value')
+      .then(snapshot => {
+        const { state } = snapshot.val();
+        return { boolState: state };
+      });
+  }
+
   public pushSensorUpdate (deviceName: string, data: any): Promise<any> {
     this.updateDeviceLastComDate(deviceName);
     return this.database.ref('devices').child(deviceName).once('value').then(snapshot => {
