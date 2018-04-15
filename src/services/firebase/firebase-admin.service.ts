@@ -1,13 +1,17 @@
 import * as admin from 'firebase-admin';
 import { appOptions } from './firebase.config';
-import { Device, Rule, Sensor } from '@ioatt/types';
+import { Device, Rule, Sensor, SensorData } from '@ioatt/types';
 import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
 import { ReplaySubject } from 'rxjs/ReplaySubject';
 
+export const SENSORS_REF = 'sensors';
+export const DEVICES_REF = 'devices';
+
 export class FirebaseAdminService {
   private database: admin.database.Database;
   private _rulesSubject: ReplaySubject<Rule[]>;
+  private _sensorsSubject: ReplaySubject<Sensor[]>;
   private _deviceSubject: { [name: string]: ReplaySubject<Device> } = {};
   private _sensorSubject: { [name: string]: ReplaySubject<Sensor> } = {};
 
@@ -17,7 +21,7 @@ export class FirebaseAdminService {
   }
 
   public getDeviceStatus (deviceName: string): Promise<any> {
-    return this.database.ref('devices').child(deviceName).once('value')
+    return this.database.ref(DEVICES_REF).child(deviceName).once('value')
       .then(snapshot => {
         const { state } = snapshot.val();
         return { boolState: state };
@@ -25,12 +29,12 @@ export class FirebaseAdminService {
   }
 
   public updateDeviceState (deviceName: string, state: boolean | number): void {
-    this.database.ref('devices').child(deviceName).child('state').set(state);
+    this.database.ref(DEVICES_REF).child(deviceName).child('state').set(state);
   }
 
   public pushSensorUpdate (deviceName: string, data: any): Promise<any> {
     this.updateDeviceLastComDate(deviceName);
-    return this.database.ref('devices').child(deviceName).once('value').then(snapshot => {
+    return this.database.ref(DEVICES_REF).child(deviceName).once('value').then(snapshot => {
       const { sensor } = snapshot.val(); ;
       return this.database.ref('sensors').child(sensor).child('data').push().set(data);
     });
@@ -39,7 +43,7 @@ export class FirebaseAdminService {
   public getDevice (deviceName: string): Observable<Device> {
     if (!this._deviceSubject[deviceName]) {
       this._deviceSubject[deviceName] = new ReplaySubject<Device>(1);
-      const ref = this.database.ref('devices').child(deviceName);
+      const ref = this.database.ref(DEVICES_REF).child(deviceName);
       ref.on('value', value => {
         const device: Device = value.val();
         this._deviceSubject[deviceName].next(device);
@@ -71,6 +75,33 @@ export class FirebaseAdminService {
     return this._rulesSubject;
   }
 
+  public updateSensorData (sensorName: string, data: SensorData): void {
+    this.database.ref(SENSORS_REF).child(sensorName).child('data').set(data);
+    this.database.ref(SENSORS_REF).child(sensorName).child('lastUpdated').set(admin.database.ServerValue.TIMESTAMP);
+  }
+
+  public getSensors (): Observable<Sensor[]> {
+    if (!this._sensorsSubject) {
+      this._sensorsSubject = new ReplaySubject<Sensor[]>(1);
+
+      const ref = this.database.ref(SENSORS_REF);
+      ref.on('value', snapshot => {
+        const value = snapshot.val();
+
+        const sensors: Sensor[] = Object.keys(value)
+          .map(key => {
+            return {
+              ...value[key],
+              key: key
+            };
+          });
+        this._sensorsSubject.next(sensors);
+      });
+    }
+
+    return this._sensorsSubject;
+  }
+
   public getSensor (sensorName: string): Observable<Sensor> {
     if (!this._sensorSubject[sensorName]) {
       this._sensorSubject[sensorName] = new ReplaySubject<Sensor>(1);
@@ -89,6 +120,6 @@ export class FirebaseAdminService {
   }
 
   private updateDeviceLastComDate (deviceName: string): void {
-    this.database.ref('devices').child(deviceName).child('lastComDate').set(admin.database.ServerValue.TIMESTAMP);
+    this.database.ref(DEVICES_REF).child(deviceName).child('lastComDate').set(admin.database.ServerValue.TIMESTAMP);
   }
 }
