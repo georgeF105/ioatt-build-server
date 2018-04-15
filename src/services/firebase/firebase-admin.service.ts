@@ -3,9 +3,12 @@ import { appOptions } from './firebase.config';
 import { Device, Rule } from '@ioatt/types';
 import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
+import { ReplaySubject } from 'rxjs/ReplaySubject';
 
 export class FirebaseAdminService {
   private database: admin.database.Database;
+  private _deviceSubject: ReplaySubject<Device>;
+
   constructor () {
     admin.initializeApp(appOptions);
     this.database = admin.database();
@@ -32,15 +35,18 @@ export class FirebaseAdminService {
   }
 
   public getDevice (deviceName: string): Observable<Device> {
-    const deviceSubject = new Subject<Device>();
+    if (!this._deviceSubject) {
+      this._deviceSubject = new ReplaySubject<Device>();
+      console.log('HERRE!!', deviceName);
+      const ref = this.database.ref('devices').child(deviceName);
+      ref.on('value', value => {
+        const device: Device = value.val();
+        console.log('xxx', device);
+        this._deviceSubject.next(device);
+      });
+    }
 
-    const ref = this.database.ref('devices').child(deviceName);
-    ref.on('value', value => {
-      const device: Device = value.val();
-      deviceSubject.next(device);
-    });
-
-    return deviceSubject.asObservable();
+    return this._deviceSubject.asObservable();
   }
 
   public getRules (): Observable<Rule[]> {
@@ -52,12 +58,19 @@ export class FirebaseAdminService {
 
       const rules: Rule[] = Object.keys(value)
         .map(key => {
-          return value[key];
+          return {
+            ...value[key],
+            key: key
+          };
         });
       rulesSubject.next(rules);
     });
 
     return rulesSubject.asObservable();
+  }
+
+  public updateRuleLastUpdatedTime (rule: Rule): void {
+    this.database.ref('rules').child(rule.key).child('lastUpdated').set(admin.database.ServerValue.TIMESTAMP);
   }
 
   private updateDeviceLastComDate (deviceName: string): void {

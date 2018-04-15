@@ -1,7 +1,11 @@
 import { FirebaseAdminService } from '../services/firebase/firebase-admin.service';
-import { sampleTime, map } from 'rxjs/operators';
+import { sampleTime, map, switchMap, reduce, timeInterval, tap, mergeMap } from 'rxjs/operators';
 import { Rule, RuleCondition } from '@ioatt/types';
 import { ConditionStrategy } from './condition/condition-strategy';
+import { Observable } from 'rxjs/Observable';
+import { of } from 'rxjs/observable/of';
+import { from } from 'rxjs/observable/from';
+import { concat } from 'rxjs/observable/concat';
 
 const UPDATE_INTERVAL = 10000;
 export class RulesService {
@@ -15,41 +19,44 @@ export class RulesService {
   private attachSubscriptions (): void {
     this.firebaseAdminService.getRules().pipe(
       sampleTime(UPDATE_INTERVAL),
-      map(rules => {
-        console.log('RULES', rules);
-        return rules.map(rule => ({ rule, state: this.getRuleState(rule)}));
-      })
-    ).subscribe(deviceStates => {
-      deviceStates.forEach(deviceState => {
-        const { rule, state } = deviceState;
-        const deviceName = rule.linkedDeviceKey;
-        console.log('updating device', deviceName, 'to', state);
-        // this.firebaseAdminService.updateDeviceState(deviceName, state);
-      });
+      switchMap(rules => from(rules).pipe(
+        mergeMap(rule => this.getRuleState(rule).pipe(map(state => ({ rule, state }))))
+      ))
+    ).subscribe(deviceState => {
+      const { rule, state } = deviceState;
+      const deviceName = rule.linkedDeviceKey;
+      console.log('updating device', deviceName, 'to', state);
+      this.firebaseAdminService.updateRuleLastUpdatedTime(rule);
     });
   }
 
-  public getRuleState (rule: Rule): number | boolean {
-    const state = rule.conditions.reduce((acc, condition) => {
-      const conditionService = this.getConditionService(condition);
-      switch (condition.logicOperator) {
-        case 'and':
-          return acc && conditionService.state(rule, condition);
-        case 'or':
-          return acc || conditionService.state(rule, condition);
-        case 'xand':
-          return acc && !conditionService.state(rule, condition);
-        case 'xor':
-          return acc || !conditionService.state(rule, condition);
-        default:
-          return true;
-      }
-    },                                   true);
-    return state;
-  }
+  public getRuleState (rule: Rule): Observable < number | boolean > {
+    return from(rule.conditions).pipe(
+        switchMap(condition => {
+          return this.getConditionService(condition).state(rule, condition).pipe(
+            map(state => ({ condition, state }))
+          );
+        }),
+        reduce((acc: boolean | number, result: { condition: RuleCondition, state: boolean | number }) => {
+          const { condition, state } = result;
+          switch (condition.logicOperator) {
+            case 'and':
+              return acc ? state : false;
+            case 'or':
+              return acc || state;
+            case 'xand':
+              return acc && !state;
+            case 'xor':
+              return acc || !state;
+            default:
+              return false;
+          }
+        },     true)
+      );
+  };
 
   private getConditionService (condition: RuleCondition): ConditionStrategy {
     return this.conditionStrategies.find(strategy => strategy.match(condition))
-      || { state: () => false, match: () => true };
+      || { state: () => of(false), match: () => true };
   }
 }
