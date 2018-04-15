@@ -1,13 +1,15 @@
 import * as admin from 'firebase-admin';
 import { appOptions } from './firebase.config';
-import { Device, Rule } from '@ioatt/types';
+import { Device, Rule, Sensor } from '@ioatt/types';
 import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
 import { ReplaySubject } from 'rxjs/ReplaySubject';
 
 export class FirebaseAdminService {
   private database: admin.database.Database;
-  private _deviceSubject: ReplaySubject<Device>;
+  private _rulesSubject: ReplaySubject<Rule[]>;
+  private _deviceSubject: { [name: string]: ReplaySubject<Device> } = {};
+  private _sensorSubject: { [name: string]: ReplaySubject<Sensor> } = {};
 
   constructor () {
     admin.initializeApp(appOptions);
@@ -35,38 +37,51 @@ export class FirebaseAdminService {
   }
 
   public getDevice (deviceName: string): Observable<Device> {
-    if (!this._deviceSubject) {
-      this._deviceSubject = new ReplaySubject<Device>();
-      console.log('HERRE!!', deviceName);
+    if (!this._deviceSubject[deviceName]) {
+      this._deviceSubject[deviceName] = new ReplaySubject<Device>();
       const ref = this.database.ref('devices').child(deviceName);
       ref.on('value', value => {
         const device: Device = value.val();
-        console.log('xxx', device);
-        this._deviceSubject.next(device);
+        this._deviceSubject[deviceName].next(device);
       });
     }
 
-    return this._deviceSubject.asObservable();
+    return this._deviceSubject[deviceName].asObservable();
   }
 
   public getRules (): Observable<Rule[]> {
-    const rulesSubject = new Subject<Rule[]>();
+    if (!this._rulesSubject) {
+      this._rulesSubject = new ReplaySubject<Rule[]>();
 
-    const ref = this.database.ref('rules');
-    ref.on('value', snapshot => {
-      const value = snapshot.val();
+      const ref = this.database.ref('rules');
+      ref.on('value', snapshot => {
+        const value = snapshot.val();
 
-      const rules: Rule[] = Object.keys(value)
-        .map(key => {
-          return {
-            ...value[key],
-            key: key
-          };
-        });
-      rulesSubject.next(rules);
-    });
+        const rules: Rule[] = Object.keys(value)
+          .map(key => {
+            return {
+              ...value[key],
+              key: key
+            };
+          });
+        this._rulesSubject.next(rules);
+      });
+    }
 
-    return rulesSubject.asObservable();
+    return this._rulesSubject.asObservable();
+  }
+
+  public getSensor (sensorName: string): Observable<Sensor> {
+    if (!this._sensorSubject[sensorName]) {
+      this._sensorSubject[sensorName] = new ReplaySubject<Sensor>();
+      const ref = this.database.ref('sensors').child(sensorName);
+      ref.on('value', value => {
+        const sensor: Sensor = value.val();
+        this._sensorSubject[sensorName].next(sensor);
+      });
+    }
+
+    return this._sensorSubject[sensorName].asObservable();
   }
 
   public updateRuleLastUpdatedTime (rule: Rule): void {

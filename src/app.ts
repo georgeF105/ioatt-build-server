@@ -38,7 +38,7 @@ app.use('/deviceStatus', deviceStatusRoute.router);
 
 const rulesService = new RulesService(firebaseAdminService, [
   new PWMConditionService(firebaseAdminService),
-  new TemperatureConditionService(),
+  new TemperatureConditionService(firebaseAdminService),
   new TimeConditionService(),
   new WeekdayConditionService()
 ]);

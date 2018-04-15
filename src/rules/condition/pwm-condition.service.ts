@@ -10,6 +10,7 @@ export class PWMConditionService implements ConditionStrategy {
   constructor (
     private firebaseAdminService: FirebaseAdminService
   ) {}
+
   public match (condition: RuleCondition): boolean {
     return condition.type === 'pwmValue';
   }
