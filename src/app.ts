@@ -15,6 +15,8 @@ import { TemperatureConditionService } from './rules/condition/temperature-condi
 import { TimeConditionService } from './rules/condition/time-condition.service';
 import { WeekdayConditionService } from './rules/condition/weekday-condition.service';
 
+import { SensorsService } from './sensors/sensor.service';
+
 const firebaseAdminService = new FirebaseAdminService();
 
 let app = express();
@@ -42,5 +44,7 @@ const rulesService = new RulesService(firebaseAdminService, [
   new TimeConditionService(),
   new WeekdayConditionService()
 ]);
+
+const sensorService = new SensorsService(firebaseAdminService);
 
 export = app;

@@ -5,7 +5,6 @@ import { ConditionStrategy } from './condition/condition-strategy';
 import { Observable } from 'rxjs/Observable';
 import { of } from 'rxjs/observable/of';
 import { from } from 'rxjs/observable/from';
-import { concat } from 'rxjs/observable/concat';
 
 const UPDATE_INTERVAL = 10000;
 export class RulesService {
