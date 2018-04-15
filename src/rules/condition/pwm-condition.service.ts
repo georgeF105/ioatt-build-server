@@ -21,7 +21,12 @@ export class PWMConditionService implements ConditionStrategy {
     const increaseRate = intervalTime * (condition.maxValue / condition.timeToMax);
     return this.firebaseAdminService.getDevice(rule.linkedDeviceKey).pipe(
       take(1),
-      map(device => Math.min(+device.state + increaseRate, condition.maxValue))
+      map(device => {
+        const oldValue = +device.state || 0;
+        console.log('oldvalue', oldValue);
+        const newValue = Math.min(oldValue + increaseRate, condition.maxValue);
+        return Math.round(newValue);
+      })
     );
   }
 }

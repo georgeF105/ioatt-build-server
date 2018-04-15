@@ -38,7 +38,7 @@ export class FirebaseAdminService {
 
   public getDevice (deviceName: string): Observable<Device> {
     if (!this._deviceSubject[deviceName]) {
-      this._deviceSubject[deviceName] = new ReplaySubject<Device>();
+      this._deviceSubject[deviceName] = new ReplaySubject<Device>(1);
       const ref = this.database.ref('devices').child(deviceName);
       ref.on('value', value => {
         const device: Device = value.val();
@@ -46,12 +46,12 @@ export class FirebaseAdminService {
       });
     }
 
-    return this._deviceSubject[deviceName].asObservable();
+    return this._deviceSubject[deviceName];
   }
 
   public getRules (): Observable<Rule[]> {
     if (!this._rulesSubject) {
-      this._rulesSubject = new ReplaySubject<Rule[]>();
+      this._rulesSubject = new ReplaySubject<Rule[]>(1);
 
       const ref = this.database.ref('rules');
       ref.on('value', snapshot => {
@@ -68,12 +68,12 @@ export class FirebaseAdminService {
       });
     }
 
-    return this._rulesSubject.asObservable();
+    return this._rulesSubject;
   }
 
   public getSensor (sensorName: string): Observable<Sensor> {
     if (!this._sensorSubject[sensorName]) {
-      this._sensorSubject[sensorName] = new ReplaySubject<Sensor>();
+      this._sensorSubject[sensorName] = new ReplaySubject<Sensor>(1);
       const ref = this.database.ref('sensors').child(sensorName);
       ref.on('value', value => {
         const sensor: Sensor = value.val();
@@ -81,7 +81,7 @@ export class FirebaseAdminService {
       });
     }
 
-    return this._sensorSubject[sensorName].asObservable();
+    return this._sensorSubject[sensorName];
   }
 
   public updateRuleLastUpdatedTime (rule: Rule): void {

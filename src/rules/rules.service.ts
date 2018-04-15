@@ -26,6 +26,7 @@ export class RulesService {
       const { rule, state } = deviceState;
       const deviceName = rule.linkedDeviceKey;
       console.log('updating device', deviceName, 'to', state);
+      this.firebaseAdminService.updateDeviceState(deviceName, state);
       this.firebaseAdminService.updateRuleLastUpdatedTime(rule);
     });
   }
